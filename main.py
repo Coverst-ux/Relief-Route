@@ -35,6 +35,30 @@ needs_demand = {
     "Awqaf housing complex": 300,
 }
 
+closable_roads = {
+    "al_rayyan": {
+        "edges": [(4823743493, 12247715582), (12247715582, 12247715668)],
+        "label": "Al Rayyan Road (طريق الريان)"
+    },
+    "al_hurriya": {
+        "edges": [(1526472865, 5871569482), (5871569482, 5871569691)],
+        "label": "Al Hurriya Street (الحرية)"
+    },
+    "al_salah": {
+        "edges": [(5871569691, 6166133928)],
+        "label": "Al Salah Street (الصلاح)"
+    },
+}
+
+def build_closed_edges_set(closed_roads, closable_roads):
+    closed = set()
+    for road_id, is_closed in closed_roads.items():
+        if is_closed:
+            for u, v in closable_roads[road_id]["edges"]:
+                closed.add((u, v))
+                closed.add((v, u))
+    return closed
+
 depots_nodes = {
     name: ox.nearest_nodes(G, lon, lat)
     for name, (lat, lon) in depots.items()
@@ -45,8 +69,22 @@ needs_nodes = {
     for name, (lat, lon) in needs.items()
 }
 
+def recompute_all_paths(closed_edges):
+    paths = {}
+    distances = {}
+    for depot_name, depot_node in depots_nodes.items():
+        for need_name, need_node in needs_nodes.items():
+            path, distance = dijkstra(G, depot_node, need_node, closed_edges)
+            key = f"{depot_name} to {need_name}"
+            paths[key] = path
+            distances[key] = distance
+    return paths, distances
 
-def dijkstra(graph, start_node, end_node):
+
+def dijkstra(graph, start_node, end_node, closed_edges =None):
+    if closed_edges is None:
+        closed_edges = set()
+
     visited = set()
     distances = {node: float('inf') for node in graph.nodes}
     distances[start_node] = 0
@@ -65,6 +103,8 @@ def dijkstra(graph, start_node, end_node):
             break
 
         for neighbor, edge_data in graph[current_node].items():
+            if (current_node, neighbor) in closed_edges:
+                continue
             min_length = min(edge_data.values(), key=lambda x: x['length'])['length']
             tentative_distance = current_distance + min_length
 
@@ -236,7 +276,7 @@ route_coords = [
     for node in example_path
 ]
 
-def build_map(flow_result, active_depots, active_needs, depots, needs):
+def build_map(flow_result, active_depots, active_needs, depots, needs, paths):
     m = folium.Map(location=[25.2854, 51.5310], zoom_start=12)
 
     # background road network (once, static)
@@ -284,7 +324,7 @@ def build_map(flow_result, active_depots, active_needs, depots, needs):
         if flow_amount > 0:
             route_coords = [
                 (G.nodes[node]["y"], G.nodes[node]["x"])
-                for node in all_paths[f"{depot_name} to {need_name}"]
+                for node in paths[f"{depot_name} to {need_name}"]
             ]
             folium.PolyLine(
                 route_coords,
@@ -294,8 +334,41 @@ def build_map(flow_result, active_depots, active_needs, depots, needs):
             ).add_to(m)
 
     return m
+from collections import Counter
 
+# find the edge row matching a given (u, v) pair and grab its name
+def get_road_name(edges, u, v):
+    match = edges[(edges.index.get_level_values(0) == u) & (edges.index.get_level_values(1) == v)]
+    if not match.empty and 'name' in match.columns:
+        name = match.iloc[0]['name']
+        return name if isinstance(name, str) else "Unnamed road"
+    return "Unnamed road"
+edges_to_check = [
+    (4823743493, 12247715582),
+    (12247715582, 12247715668),
+    (1526472865, 5871569482),
+    (5871569482, 5871569691),
+    (5871569691, 6166133928),
+]
+
+for u, v in edges_to_check:
+    print(u, v, "->", get_road_name(edges, u, v))
 if __name__ == "__main__":
     graph = build_flow_network(depots, needs, depots_supply, needs_demand, all_distances)
     flow, cost = min_cost_max_flow(graph, "S", "T")
     print(f"MCMF result — flow: {flow}, cost: {cost}")
+
+    # verification test (Day 7) — confirmed working, road closures correctly
+    # reroute affected depot-need pairs. Left commented for reference.
+    # test_closed = build_closed_edges_set(
+    #     {"al_rayyan": True, "al_hurriya": False, "al_salah": False},
+    #     closable_roads
+    # )
+    # new_paths, new_distances = recompute_all_paths(test_closed)
+    # for key in all_distances:
+    #     before = all_distances[key]
+    #     after = new_distances[key]
+    #     if abs(before - after) > 1:
+    #         print(f"{key}: {before:.1f}m -> {after:.1f}m (CHANGED)")
+    #     else:
+    #         print(f"{key}: unchanged")
