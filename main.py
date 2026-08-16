@@ -178,6 +178,18 @@ def min_cost_max_flow(graph, source, sink):
 
     return flow, cost
 
+def extract_flow_per_pair(graph, depots, needs):
+    """
+    After min_cost_max_flow runs, reverse_edge.capacity == flow currently
+    pushed on the matching forward edge (standard residual-graph property).
+    """
+    flow_per_pair = {}
+    for depot_name in depots:
+        for edge in graph[depot_name]:
+            if edge.to in needs:  # forward depot->need edge, not the S-reverse edge
+                flow_per_pair[(depot_name, edge.to)] = edge.reverse.capacity
+    return flow_per_pair
+
 
 def build_flow_network(depots, needs, depots_supply, needs_demand, all_distances):
     graph = {}
@@ -224,18 +236,65 @@ route_coords = [
     for node in example_path
 ]
 
-m = folium.Map(location=[25.2854, 51.5310], zoom_start=12)
+def build_map(flow_result, active_depots, active_needs, depots, needs):
+    m = folium.Map(location=[25.2854, 51.5310], zoom_start=12)
 
-for _, row in edges.iterrows():
-    coords = [(lat, lon) for lon, lat in row["geometry"].coords]
-    folium.PolyLine(coords, color="blue", weight=1, opacity=0.5).add_to(m)
+    # background road network (once, static)
+    # for _, row in edges.iterrows():
+    #     coords = [(lat, lon) for lon, lat in row["geometry"].coords]
+    #     folium.PolyLine(coords, color="blue", weight=1, opacity=0.3).add_to(m)
 
-folium.PolyLine(route_coords, color="red", weight=5, opacity=1).add_to(m)
-folium.Marker(route_coords[0], popup="Aster Hospital").add_to(m)
-folium.Marker(route_coords[-1], popup="Al Sadd").add_to(m)
+    # depot markers  colored if active, greyed if not
+    for name, (lat, lon) in depots.items():
+        color = "green" if active_depots[name] else "gray"
+        popup_html = f"""
+        <b>{name}</b><br>
+        Supply: {depots_supply[name]}<br>
+        <form action="/toggle" method="post">
+            <input type="hidden" name="node_id" value="{name}">
+            <input type="hidden" name="node_type" value="depot">
+            <button type="submit">{'Deactivate' if active_depots[name] else 'Activate'}</button>
+        </form>
+        """
+        folium.Marker(
+            [lat, lon],
+            popup=folium.Popup(popup_html, max_width=250),
+            icon=folium.Icon(color=color)
+        ).add_to(m)
 
+    # need markers  same active/inactive pattern
+    for name, (lat, lon) in needs.items():
+        color = "red" if active_needs[name] else "gray"
+        popup_html = f"""
+        <b>{name}</b><br>
+        Demand: {needs_demand[name]}<br>
+        <form action="/toggle" method="post">
+            <input type="hidden" name="node_id" value="{name}">
+            <input type="hidden" name="node_type" value="need">
+            <button type="submit">{'Deactivate' if active_needs[name] else 'Activate'}</button>
+        </form>
+        """
+        folium.Marker(
+            [lat, lon],
+            popup=folium.Popup(popup_html, max_width=250),
+            icon=folium.Icon(color=color)
+        ).add_to(m)
+    # flow lines one PolyLine per depot-need pair that actually has flow
+    for (depot_name, need_name), flow_amount in flow_result.items():
+        if flow_amount > 0:
+            route_coords = [
+                (G.nodes[node]["y"], G.nodes[node]["x"])
+                for node in all_paths[f"{depot_name} to {need_name}"]
+            ]
+            folium.PolyLine(
+                route_coords,
+                color="darkred",
+                weight=max(1, flow_amount / 50),  # thicker line = more flow
+                opacity=0.8
+            ).add_to(m)
 
-# ── Run min-cost max-flow over full network ───────────────────
+    return m
+
 if __name__ == "__main__":
     graph = build_flow_network(depots, needs, depots_supply, needs_demand, all_distances)
     flow, cost = min_cost_max_flow(graph, "S", "T")
