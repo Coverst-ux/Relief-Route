@@ -30,7 +30,7 @@ def index():
     flow_result = extract_flow_per_pair(graph, depots, needs)
 
     folium_map = build_map(flow_result, active_depots, active_needs, depots, needs, current_paths)
-    return render_template("index.html", map_html=folium_map.get_root().render(), closable_roads=closable_roads, closed_roads=closed_roads)
+    return render_template("index.html", map_html=folium_map.get_root().render(), closable_roads=closable_roads, closed_roads=closed_roads, active_depots=active_depots, flow=flow, cost=cost)
 
 @app.route('/toggle', methods=['POST'])
 def toggle():
