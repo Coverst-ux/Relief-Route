@@ -183,7 +183,6 @@ def min_cost_max_flow(graph, source, sink):
         if distance[sink] == float('inf'):
             break
 
-        # Find bottleneck
         bottleneck = float('inf')
         node = sink
         visited = set()
@@ -203,7 +202,6 @@ def min_cost_max_flow(graph, source, sink):
             bottleneck = min(bottleneck, edge.capacity)
             node = edge.reverse.to
 
-        # Send flow
         node = sink
         while node != source:
             edge = parent[node]
@@ -226,7 +224,7 @@ def extract_flow_per_pair(graph, depots, needs):
     flow_per_pair = {}
     for depot_name in depots:
         for edge in graph[depot_name]:
-            if edge.to in needs:  # forward depot->need edge, not the S-reverse edge
+            if edge.to in needs:  
                 flow_per_pair[(depot_name, edge.to)] = edge.reverse.capacity
     return flow_per_pair
 
@@ -255,7 +253,6 @@ def build_flow_network(depots, needs, depots_supply, needs_demand, all_distances
     return graph
 
 
-# ── Run Dijkstra for every depot→need pair (cached) ──────────
 all_paths = {}
 all_distances = {}
 
@@ -267,7 +264,6 @@ for depot_name, depot_node in depots_nodes.items():
         all_distances[key] = distance
 
 
-# ── Example single-route visualization ────────────────────────
 start_node = depots_nodes["Aster Hospital"]
 end_node = needs_nodes["Al Sadd"]
 example_path, example_distance = dijkstra(G, start_node, end_node)
@@ -276,50 +272,82 @@ route_coords = [
     for node in example_path
 ]
 
-def build_map(flow_result, active_depots, active_needs, depots, needs, paths):
+def build_map(flow_result, active_depots, active_needs, depots, needs, paths, closed_roads):
     m = folium.Map(location=[25.2854, 51.5310], zoom_start=12)
 
-    # background road network (once, static)
-    # for _, row in edges.iterrows():
-    #     coords = [(lat, lon) for lon, lat in row["geometry"].coords]
-    #     folium.PolyLine(coords, color="blue", weight=1, opacity=0.3).add_to(m)
 
-    # depot markers  colored if active, greyed if not
     for name, (lat, lon) in depots.items():
         color = "green" if active_depots[name] else "gray"
         popup_html = f"""
-        <b>{name}</b><br>
-        Supply: {depots_supply[name]}<br>
-        <form action="/toggle" method="post">
+    <div style="font-family: 'Inter', sans-serif; padding: 8px 4px; min-width: 160px;">
+        <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px; margin-bottom: 4px; color: #5C1730;">
+            {name}
+        </div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #555; margin-bottom: 10px;">
+            Supply: {depots_supply[name]}
+        </div>
+        <form action="/toggle" method="post" style="margin: 0;">
             <input type="hidden" name="node_id" value="{name}">
             <input type="hidden" name="node_type" value="depot">
-            <button type="submit">{'Deactivate' if active_depots[name] else 'Activate'}</button>
+            <button type="submit" style="
+                background-color: {'#7A1F3A' if active_depots[name] else '#2E7D32'};
+                color: white;
+                border: none;
+                padding: 6px 14px;
+                border-radius: 6px;
+                font-family: 'Inter', sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                width: 100%;
+            ">
+                {'Deactivate' if active_depots[name] else 'Activate'}
+            </button>
         </form>
-        """
+    </div>
+    """
         folium.Marker(
             [lat, lon],
             popup=folium.Popup(popup_html, max_width=250),
             icon=folium.Icon(color=color)
         ).add_to(m)
 
-    # need markers  same active/inactive pattern
     for name, (lat, lon) in needs.items():
         color = "red" if active_needs[name] else "gray"
         popup_html = f"""
-        <b>{name}</b><br>
-        Demand: {needs_demand[name]}<br>
-        <form action="/toggle" method="post">
+    <div style="font-family: 'Inter', sans-serif; padding: 4px 2px; min-width: 120px;">
+        <div style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; margin-bottom: 2px; color: #5C1730;">
+            {name}
+        </div>
+        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #555; margin-bottom: 6px;">
+            Demand: {needs_demand[name]}
+        </div>
+        <form action="/toggle" method="post" style="margin: 0;">
             <input type="hidden" name="node_id" value="{name}">
             <input type="hidden" name="node_type" value="need">
-            <button type="submit">{'Deactivate' if active_needs[name] else 'Activate'}</button>
+            <button type="submit" style="
+                background-color: {'#7A1F3A' if active_needs[name] else '#2E7D32'};
+                color: white;
+                border: none;
+                padding: 4px 8px;
+                border-radius: 5px;
+                font-family: 'Inter', sans-serif;
+                font-size: 11px;
+                font-weight: 500;
+                cursor: pointer;
+                width: 100%;
+            ">
+                {'Deactivate' if active_needs[name] else 'Activate'}
+            </button>
         </form>
-        """
+    </div>
+    """
         folium.Marker(
             [lat, lon],
             popup=folium.Popup(popup_html, max_width=250),
             icon=folium.Icon(color=color)
         ).add_to(m)
-    # flow lines one PolyLine per depot-need pair that actually has flow
+        
     for (depot_name, need_name), flow_amount in flow_result.items():
         if flow_amount > 0:
             route_coords = [
@@ -329,11 +357,27 @@ def build_map(flow_result, active_depots, active_needs, depots, needs, paths):
             folium.PolyLine(
                 route_coords,
                 color="darkred",
-                weight=max(1, flow_amount / 50),  # thicker line = more flow
+                weight=max(1, flow_amount / 50),  
                 opacity=0.8
             ).add_to(m)
 
+    for road_id, road_info in closable_roads.items(): 
+        if closed_roads[road_id]:
+            for u,v in road_info["edges"]:
+                route_coords = [
+                    (G.nodes[u]["y"], G.nodes[u]["x"]),
+                    (G.nodes[v]["y"], G.nodes[v]["x"])
+
+                ]
+                
+                folium.PolyLine(
+                    route_coords,
+                    color="red",
+                    weight= 7,
+                    dash_array = "5,10"
+                ).add_to(m)
     return m
+
 from collections import Counter
 
 # find the edge row matching a given (u, v) pair and grab its name

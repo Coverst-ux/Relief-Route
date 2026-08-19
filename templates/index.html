@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ReliefRoute — Doha Disaster Resource Router</title>
+    <title>ReliefRoute: Doha Disaster Resource Router</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
@@ -16,12 +16,15 @@
   </head>
   <body>
     <section class="hero">
-      <div class="eyebrow">Doha · Live Routing Console</div>
-      <h1>Route relief where roads actually allow it.</h1>
+      <div class="eyebrow">Doha · Live Disaster Response Routing</div>
+      <h1>When a road closes, where does the aid go instead?</h1>
       <p class="sub">
-        ReliefRoute computes optimal aid distribution across Doha's real road
-        network — toggling depots, need points, and road closures recalculates
-        routes live.
+        This is a routing tool built on Doha's actual road network. It
+        calculates the fastest way to move supplies from depots to the
+        people who need them, and if a road closes, it recalculates
+        immediately. The routing logic is built from scratch: Dijkstra for
+        shortest paths, min-cost max-flow to decide how supply is split
+        across need points. No external routing APIs.
       </p>
       <div class="stat-strip">
         <div class="stat">
@@ -88,7 +91,7 @@
         </div>
         <p>
           Depots (supply) and need points (demand) can be toggled
-          active/inactive from their map popups — the routing recalculates
+          active/inactive from their map popups, and the routing recalculates
           instantly.
         </p>
         <p>
@@ -121,7 +124,7 @@
         </div>
         <h3>Road Closures</h3>
         <div class="panel-sub">
-          Simulate a blocked street — routes reroute automatically
+          Simulate a blocked street. Routes reroute automatically.
         </div>
         <form action="/update_roads" method="post">
           <div class="road-list">
@@ -148,8 +151,8 @@
     </section>
 
     <footer>
-      ReliefRoute — built for Doha, Qatar. Custom Dijkstra + min-cost max-flow,
-      no external routing APIs.
+      ReliefRoute, built for Doha, Qatar. Custom Dijkstra plus min-cost
+      max-flow, no external routing APIs.
     </footer>
 
     <script>

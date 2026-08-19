@@ -6,7 +6,6 @@ from main import (
     closable_roads, recompute_all_paths,
      all_paths
 )
-import folium 
 
 app = Flask(__name__)
 
@@ -29,7 +28,7 @@ def index():
     flow, cost = min_cost_max_flow(graph, "S", "T")
     flow_result = extract_flow_per_pair(graph, depots, needs)
 
-    folium_map = build_map(flow_result, active_depots, active_needs, depots, needs, current_paths)
+    folium_map = build_map(flow_result, active_depots, active_needs, depots, needs, current_paths, closed_roads)
     return render_template("index.html", map_html=folium_map.get_root().render(), closable_roads=closable_roads, closed_roads=closed_roads, active_depots=active_depots, flow=flow, cost=cost)
 
 @app.route('/toggle', methods=['POST'])
