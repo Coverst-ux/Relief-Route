@@ -286,7 +286,7 @@ def build_map(flow_result, active_depots, active_needs, depots, needs, paths, cl
         <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #555; margin-bottom: 10px;">
             Supply: {depots_supply[name]}
         </div>
-        <form action="/toggle" method="post" style="margin: 0;">
+        <form action="/toggle" method="post" target="_top" style="margin: 0;">
             <input type="hidden" name="node_id" value="{name}">
             <input type="hidden" name="node_type" value="depot">
             <button type="submit" style="
@@ -322,7 +322,7 @@ def build_map(flow_result, active_depots, active_needs, depots, needs, paths, cl
         <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #555; margin-bottom: 6px;">
             Demand: {needs_demand[name]}
         </div>
-        <form action="/toggle" method="post" style="margin: 0;">
+        <form action="/toggle" method="post" target="_top" style="margin: 0;">
             <input type="hidden" name="node_id" value="{name}">
             <input type="hidden" name="node_type" value="need">
             <button type="submit" style="
