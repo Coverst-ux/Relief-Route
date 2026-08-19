@@ -199,6 +199,7 @@ h3 {
 }
 
 .legend-chip {
+  font-size: 1.35rem;
   display: flex;
   align-items: center;
   gap: 10px;
